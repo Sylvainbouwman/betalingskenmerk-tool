@@ -13,7 +13,7 @@ jobs:
       - name: Kopieer naar bouwman-tools
         run: |
           git clone https://x-access-token:${{ secrets.BOUWMAN_TOOLS_PAT }}@github.com/Sylvainbouwman/bouwman-tools.git _bouwman
-          cp index.html _bouwman/betalingskenmerk.html
+          cp betalingskenmerk.html _bouwman/betalingskenmerk.html
           cd _bouwman
           git config user.email "s.bouwman@joinadministraties.nl"
           git config user.name "Sylvainbouwman"
