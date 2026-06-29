@@ -1,0 +1,22 @@
+name: Sync naar bouwman-tools
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kopieer betalingskenmerk.html naar bouwman-tools
+        run: |
+          git clone https://x-access-token:${{ secrets.BOUWMAN_TOOLS_PAT }}@github.com/Sylvainbouwman/bouwman-tools.git _bouwman
+          cp index.html _bouwman/betalingskenmerk.html
+          cd _bouwman
+          git config user.email "s.bouwman@joinadministraties.nl"
+          git config user.name "Sylvainbouwman"
+          git add betalingskenmerk.html
+          git diff --staged --quiet || git commit -m "Sync betalingskenmerk.html vanuit betalingskenmerk-tool"
+          git push
