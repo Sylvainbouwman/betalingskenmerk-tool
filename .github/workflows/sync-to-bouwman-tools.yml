@@ -1,4 +1,4 @@
-name: Sync naar bouwman-tools
+﻿name: Sync naar bouwman-tools
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Kopieer betalingskenmerk.html naar bouwman-tools
+      - name: Kopieer naar bouwman-tools
         run: |
           git clone https://x-access-token:${{ secrets.BOUWMAN_TOOLS_PAT }}@github.com/Sylvainbouwman/bouwman-tools.git _bouwman
           cp index.html _bouwman/betalingskenmerk.html
@@ -18,5 +18,6 @@ jobs:
           git config user.email "s.bouwman@joinadministraties.nl"
           git config user.name "Sylvainbouwman"
           git add betalingskenmerk.html
-          git diff --staged --quiet || git commit -m "Sync betalingskenmerk.html vanuit betalingskenmerk-tool"
+          git diff --staged --quiet || git commit -m "Sync vanuit betalingskenmerk-tool"
+          git pull origin master --rebase
           git push
