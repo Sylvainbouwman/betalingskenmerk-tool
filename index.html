@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Betalingskenmerk — Bouwman Tools</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(107, 224, 161, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(255, 207, 0, 0.20), transparent 24%),
+        linear-gradient(180deg, #f8fbfd 0%, #eef3f7 100%);
+      color: #24304A;
+    }
+
+    .page { min-height: 100vh; padding: 14px 16px 16px; }
+
+    .container { max-width: 760px; margin: 0 auto; }
+
+    .topbar {
+      background: linear-gradient(135deg, #24304A 0%, #2f3d5d 100%);
+      color: white;
+      border-radius: 20px;
+      padding: 18px 22px;
+      box-shadow: 0 14px 30px rgba(36, 48, 74, 0.16);
+      margin-bottom: 14px;
+    }
+    .topbar-title { margin: 0 0 6px; font-size: 27px; line-height: 1.1; }
+    .topbar-text { margin: 0; font-size: 14px; line-height: 1.5; color: rgba(255,255,255,0.9); }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px 22px;
+      box-shadow: 0 4px 16px rgba(36,48,74,0.08);
+      margin-bottom: 14px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 12px 16px;
+      font-size: 18px;
+      font-family: monospace;
+      letter-spacing: 2px;
+      border: 2px solid #d0d8e8;
+      border-radius: 10px;
+      color: #24304A;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: #24304A; }
+
+    button {
+      padding: 12px 22px;
+      font-size: 15px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #24304A, #2f3d5d);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.88; }
+
+    .error {
+      background: #fff3f3;
+      border: 1.5px solid #f5b8b8;
+      color: #c0392b;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .result-section { display: none; }
+
+    .omschrijving-box {
+      background: linear-gradient(135deg, #24304A, #2f3d5d);
+      color: white;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      cursor: pointer;
+    }
+    .omschrijving-label { font-size: 12px; opacity: 0.75; margin-bottom: 4px; }
+    .omschrijving-text { font-size: 20px; font-weight: bold; }
+    .copy-hint { font-size: 12px; opacity: 0.6; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    @media (max-width: 500px) { .result-grid { grid-template-columns: 1fr; } }
+
+    .result-tile {
+      background: white;
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: 0 2px 10px rgba(36,48,74,0.07);
+    }
+    .result-tile.wide { grid-column: 1 / -1; }
+    .tile-label { font-size: 12px; color: #6b7a99; margin-bottom: 4px; }
+    .tile-value { font-size: 18px; font-weight: bold; color: #24304A; }
+    .tile-sub { font-size: 13px; color: #6b7a99; margin-top: 2px; }
+
+    .rsin-display { font-family: monospace; font-size: 17px; }
+
+    .digit-strip {
+      display: flex;
+      gap: 3px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .digit {
+      width: 28px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 15px;
+      font-weight: bold;
+    }
+    .digit.active { background: #24304A; color: white; }
+    .digit.inactive { background: #e8ecf2; color: #6b7a99; }
+    .digit-sep { color: #aab4cc; display: flex; align-items: center; font-size: 18px; }
+
+    .kvk-placeholder {
+      font-size: 14px;
+      color: #6b7a99;
+      font-style: italic;
+    }
+
+    .copied-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #24304A;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .copied-toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="container">
+
+    <div class="topbar">
+      <h1 class="topbar-title">Betalingskenmerk</h1>
+      <p class="topbar-text">Plak een 16-cijferig betalingskenmerk van de Belastingdienst en zie direct om welk belastingmiddel, jaar en tijdvak het gaat.</p>
+    </div>
+
+    <div class="card">
+      <div class="input-row">
+        <input type="text" id="kenmerk-input" placeholder="bijv. 4863521721601050" maxlength="19" inputmode="numeric" autocomplete="off" />
+        <button onclick="decode()">Vertalen</button>
+      </div>
+      <div class="error" id="error-box"></div>
+    </div>
+
+    <div class="result-section" id="result-section">
+
+      <div class="omschrijving-box" id="omschrijving-box" onclick="copyOmschrijving()">
+        <div>
+          <div class="omschrijving-label">Omschrijving voor in uw boekhouding</div>
+          <div class="omschrijving-text" id="omschrijving-text"></div>
+        </div>
+        <div class="copy-hint">Klik om te kopiëren</div>
+      </div>
+
+      <div class="result-grid">
+        <div class="result-tile">
+          <div class="tile-label">Soort</div>
+          <div class="tile-value" id="res-soort"></div>
+          <div class="tile-sub" id="res-soort-sub"></div>
+        </div>
+        <div class="result-tile">
+          <div class="tile-label">Jaartal</div>
+          <div class="tile-value" id="res-jaar"></div>
+        </div>
+        <div class="result-tile">
+          <div class="tile-label">Tijdvak</div>
+          <div class="tile-value" id="res-tijdvak"></div>
+        </div>
+        <div class="result-tile">
+          <div class="tile-label">BSN / RSIN</div>
+          <div class="tile-value rsin-display" id="res-rsin"></div>
+        </div>
+        <div class="result-tile wide">
+          <div class="tile-label">Naam bij RSIN</div>
+          <div class="tile-value" id="res-naam"><span class="kvk-placeholder">KvK-koppeling nog niet actief</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:14px 18px;">
+        <div class="tile-label" style="margin-bottom:8px;">Positieweergave</div>
+        <div class="digit-strip" id="digit-strip"></div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<div class="copied-toast" id="copied-toast">Gekopieerd!</div>
+
+<script>
+const MAANDEN = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+
+const MIDDEL_LABEL = {
+  0: { kort: 'LH', lang: 'Loonheffing', sub: 'Naheffingsaanslag' },
+  1: { kort: 'OB', lang: 'Omzetbelasting', sub: 'Aangifte' },
+  5: { kort: 'OB', lang: 'Omzetbelasting', sub: 'Naheffingsaanslag' },
+  6: { kort: 'LH', lang: 'Loonheffing', sub: 'Aangifte' },
+};
+
+const MIDDEL2_LABEL = {
+  70: { kort: 'IB',  lang: 'Inkomstenbelasting' },
+  71: { kort: 'IH',  lang: 'Conserverende aanslag IH' },
+  73: { kort: 'IB',  lang: 'Inkomstenbelasting (gemoedsbezwaarde)' },
+  74: { kort: 'VpB', lang: 'Vennootschapsbelasting' },
+  75: { kort: 'ZVW', lang: 'Zorgverzekeringswet' },
+  76: { kort: 'HSB', lang: 'Houderschapsbelasting (naheffing)' },
+  78: { kort: 'HSB', lang: 'Houderschapsbelasting' },
+  85: { kort: 'EVN', lang: 'Eurovignet' },
+  86: { kort: 'EVN', lang: 'Eurovignet (naheffing)' },
+  87: { kort: 'MOA', lang: 'Houderschapsbelasting vrachtwagens (aangifte)' },
+  88: { kort: 'MOA', lang: 'Houderschapsbelasting vrachtwagens (naheffing)' },
+  97: { kort: 'LIR', lang: 'Landinrichtingsrente / Verontreinigingsheffing' },
+  23: { kort: 'KOT', lang: 'Kinderopvangtoeslag' },
+  24: { kort: 'HT',  lang: 'Huurtoeslag' },
+  25: { kort: 'ZT',  lang: 'Zorgtoeslag' },
+  26: { kort: 'KGB', lang: 'Kindgebonden budget' },
+  27: { kort: 'VB',  lang: 'Verzuimboete Toeslagen' },
+  28: { kort: 'VGB', lang: 'Vergrijpboete Toeslagen' },
+};
+
+function rsinCheckDigit(d8) {
+  const w = [9,8,7,6,5,4,3,2];
+  const sum = d8.split('').reduce((acc, c, i) => acc + parseInt(c) * w[i], 0);
+  return sum % 11;
+}
+
+function reconstructYear(digit) {
+  const currentLastDigit = new Date().getFullYear() % 10;
+  const base = digit <= currentLastDigit ? 2020 : 2010;
+  return base + digit;
+}
+
+function decodeTijdvak(code) {
+  const n = parseInt(code, 10);
+  if (n === 0) return 'Jaaraangifte';
+  if (n >= 1 && n <= 12) return MAANDEN[n - 1];
+  if (n === 21) return '1e kwartaal';
+  if (n === 24) return '2e kwartaal';
+  if (n === 27) return '3e kwartaal';
+  if (n === 30) return '4e kwartaal';
+  return `tijdvak ${code}`;
+}
+
+function formatRsin(rsin9) {
+  return rsin9.slice(0,4) + '.' + rsin9.slice(4,6) + '.' + rsin9.slice(6);
+}
+
+function decode() {
+  const raw = document.getElementById('kenmerk-input').value.replace(/\s/g, '');
+  const errorBox = document.getElementById('error-box');
+  const resultSection = document.getElementById('result-section');
+
+  errorBox.style.display = 'none';
+  resultSection.style.display = 'none';
+
+  if (!/^\d{16}$/.test(raw)) {
+    errorBox.textContent = 'Voer een geldig 16-cijferig betalingskenmerk in.';
+    errorBox.style.display = 'block';
+    return;
+  }
+
+  const pos = i => parseInt(raw[i - 1]);
+  const slice = (from, to) => raw.slice(from - 1, to);
+
+  const middel10 = pos(10);
+
+  let result;
+
+  if ([0, 1, 5, 6].includes(middel10)) {
+    // LB / OB groep
+    const rsin8 = slice(2, 9);
+    const d9 = rsinCheckDigit(rsin8);
+    const rsin9 = rsin8 + d9;
+    const jaarDigit = pos(11);
+    const jaar = reconstructYear(jaarDigit);
+    const tydvakCode = slice(14, 15);
+    const tijdvak = decodeTijdvak(tydvakCode);
+    const m = MIDDEL_LABEL[middel10];
+
+    result = {
+      soort: m.lang,
+      soortSub: m.sub,
+      kort: m.kort,
+      jaar,
+      tijdvak,
+      rsin: formatRsin(rsin9),
+      activePositions: {
+        1: 'controle',
+        '2-9': 'rsin',
+        10: 'middel',
+        11: 'jaar',
+        '12-13': 'subno',
+        '14-15': 'tijdvak',
+        16: 'volg',
+      },
+      highlights: [false, ...Array(8).fill(true), true, true, true, true, true, false],
+      // index 0=pos1(ctrl), 1-8=rsin, 9=middel10, 10=jaar, 11-12=subno, 13-14=tydvak, 15=volg
+      // active: middel(pos10), jaar(pos11), tydvak(pos14-15)
+      digitActive: [false, false,false,false,false,false,false,false,false, true, true, false,false, true,true, false],
+    };
+  } else {
+    const middel2 = parseInt(slice(10, 11), 10);
+
+    // VpB: middel 74 of 80-96
+    if (middel2 === 74 || (middel2 >= 80 && middel2 <= 96)) {
+      const rsin6 = slice(2, 7);
+      let prefix;
+      if (middel2 === 74) prefix = '00';
+      else if (middel2 <= 84) prefix = String(middel2);
+      else prefix = String(middel2 - 7); // 92→85, 93→86, ..., 96→89
+
+      const rsin8 = prefix + rsin6;
+      const d9 = rsinCheckDigit(rsin8);
+      const rsin9 = rsin8 + d9;
+      const jaarDigit = pos(8);
+      const jaar = reconstructYear(jaarDigit);
+      const tydvakCode = slice(12, 15);
+
+      result = {
+        soort: 'Vennootschapsbelasting',
+        soortSub: '',
+        kort: 'VpB',
+        jaar,
+        tijdvak: `Boekjaar ${tydvakCode}`,
+        rsin: formatRsin(rsin9),
+        digitActive: [false, true,true,true,true,true,true, true, false, true,true, false,false,false,false, false],
+      };
+    } else if (MIDDEL2_LABEL[middel2]) {
+      // IB, Toeslagen, overige
+      const rsin8 = slice(2, 9);
+      const d9 = rsinCheckDigit(rsin8);
+      const rsin9 = rsin8 + d9;
+      const jaarDigit = pos(12);
+      const jaar = reconstructYear(jaarDigit);
+      const m = MIDDEL2_LABEL[middel2];
+
+      result = {
+        soort: m.lang,
+        soortSub: '',
+        kort: m.kort,
+        jaar,
+        tijdvak: '—',
+        rsin: formatRsin(rsin9),
+        digitActive: [false, true,true,true,true,true,true,true,true, true,true, true, false,false,false,false],
+      };
+    } else {
+      errorBox.textContent = `Onbekend middelcode (${middel2}). Mogelijk een bijzonder of random kenmerk dat niet algoritmisch te decoderen is.`;
+      errorBox.style.display = 'block';
+      return;
+    }
+  }
+
+  // Render
+  document.getElementById('res-soort').textContent = result.soort;
+  document.getElementById('res-soort-sub').textContent = result.soortSub || '';
+  document.getElementById('res-jaar').textContent = result.jaar;
+  document.getElementById('res-tijdvak').textContent = result.tijdvak.charAt(0).toUpperCase() + result.tijdvak.slice(1);
+  document.getElementById('res-rsin').textContent = result.rsin;
+
+  const omschrijving = buildOmschrijving(result);
+  document.getElementById('omschrijving-text').textContent = omschrijving;
+
+  renderDigitStrip(raw, result.digitActive);
+
+  resultSection.style.display = 'block';
+}
+
+function buildOmschrijving({ kort, soortSub, tijdvak, jaar }) {
+  const prefix = soortSub === 'Naheffingsaanslag' ? 'Naheff.' : 'Afdr.';
+  const tv = tijdvak.charAt(0).toUpperCase() + tijdvak.slice(1);
+  return `${prefix} ${kort} ${tv} ${jaar}`;
+}
+
+function renderDigitStrip(raw, active) {
+  const strip = document.getElementById('digit-strip');
+  strip.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    if (i === 9 || i === 11 || i === 13) {
+      const sep = document.createElement('span');
+      sep.className = 'digit-sep';
+      sep.textContent = '·';
+      strip.appendChild(sep);
+    }
+    const d = document.createElement('div');
+    d.className = 'digit ' + (active[i] ? 'active' : 'inactive');
+    d.textContent = raw[i];
+    strip.appendChild(d);
+  }
+}
+
+function copyOmschrijving() {
+  const text = document.getElementById('omschrijving-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.getElementById('copied-toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1800);
+  });
+}
+
+// Decode on Enter
+document.getElementById('kenmerk-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') decode();
+});
+
+// Auto-format input (spaces elke 4 cijfers) en decode als 16 cijfers bereikt
+document.getElementById('kenmerk-input').addEventListener('input', function() {
+  const digits = this.value.replace(/\D/g, '').slice(0, 16);
+  if (digits.length === 16) {
+    setTimeout(decode, 80);
+  }
+});
+</script>
+</body>
+</html>
