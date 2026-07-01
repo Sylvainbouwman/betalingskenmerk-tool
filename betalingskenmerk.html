@@ -551,9 +551,8 @@ function copyOmschrijving() {
   });
 }
 
-// KvK instellingen
-const KVK_API_BASE   = 'https://api.kvk.nl/api/v1/zoeken';
-const KVK_TRACKER    = 'https://kvk-proxy.s-bouwman.workers.dev';
+// KvK Worker (proxy + dagteller)
+const KVK_WORKER = 'https://kvk-proxy.s-bouwman.workers.dev';
 
 function openSettings() {
   document.getElementById('api-key-input').value = localStorage.getItem('kvk_api_key') || '';
@@ -581,35 +580,31 @@ async function lookupNaam(rsin9) {
   naamEl.innerHTML = '<span class="kvk-placeholder">Ophalen…</span>';
 
   try {
-    const resp = await fetch(`${KVK_API_BASE}?rsin=${rsin9}`, {
-      headers: { 'apikey': key },
+    const resp = await fetch(KVK_WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rsin: rsin9, apikey: key }),
     });
-    if (resp.status === 401) {
-      naamEl.innerHTML = '<span class="kvk-placeholder" style="color:#c0392b">Ongeldige API-sleutel — controleer de instellingen</span>';
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      const detail = data.detail || '';
+      const msg = detail.includes('520') || detail.includes('error code')
+        ? 'KvK niet bereikbaar via proxy — mogelijk test-sleutel of IP-restrictie'
+        : `KvK-fout (${resp.status})`;
+      naamEl.innerHTML = `<span class="kvk-placeholder" style="color:#c0392b">${msg}</span>`;
       return;
     }
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-    if (data.resultaten && data.resultaten.length > 0) {
-      naamEl.textContent = data.resultaten[0].naam;
+
+    if (data.naam) {
+      naamEl.textContent = data.naam;
     } else {
       naamEl.innerHTML = '<span class="kvk-placeholder">Niet gevonden in KvK-register (mogelijk BSN van particulier)</span>';
     }
-    trackAanroep(); // bijhouden na succesvolle lookup
-  } catch {
-    naamEl.innerHTML = '<span class="kvk-placeholder">Fout bij ophalen — controleer uw verbinding</span>';
-  }
-}
 
-async function trackAanroep() {
-  try {
-    const resp = await fetch(KVK_TRACKER, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    const { count, drempel } = await resp.json();
+    // Gebruiksteller bijwerken in banner
     const banner = document.getElementById('usage-banner');
+    const { count, drempel } = data;
     if (count >= drempel) {
       banner.className = 'usage-banner usage-alert';
       banner.textContent = `Daglimiet bereikt: ${count} KvK-aanroepen vandaag (limiet: ${drempel}). Controleer de kosten.`;
@@ -620,7 +615,7 @@ async function trackAanroep() {
       banner.style.display = 'block';
     }
   } catch {
-    // tracking-fout is niet kritisch
+    naamEl.innerHTML = '<span class="kvk-placeholder">Kon de KvK-proxy niet bereiken</span>';
   }
 }
 
