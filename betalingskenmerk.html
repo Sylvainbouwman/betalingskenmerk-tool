@@ -181,6 +181,74 @@
       transition: opacity 0.2s;
     }
     .copied-toast.show { opacity: 1; }
+
+    .topbar { position: relative; }
+    .settings-btn {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      background: rgba(255,255,255,0.15);
+      border: none;
+      color: white;
+      border-radius: 8px;
+      padding: 7px 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: background 0.15s;
+    }
+    .settings-btn:hover { background: rgba(255,255,255,0.27); opacity: 1; }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.42);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 16px;
+      padding: 24px 26px;
+      width: 90%;
+      max-width: 420px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+    }
+    .modal h2 { margin: 0 0 8px; font-size: 18px; color: #24304A; }
+    .modal p { margin: 0 0 16px; font-size: 14px; color: #6b7a99; line-height: 1.5; }
+    .modal input[type="text"] {
+      width: 100%;
+      letter-spacing: 0;
+      font-family: monospace;
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-secondary {
+      background: #e8ecf2;
+      color: #24304A;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .btn-secondary:hover { background: #d0d8e8; opacity: 1; }
+
+    .usage-banner {
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 14px;
+      display: none;
+    }
+    .usage-warn { background: #fffbe6; border: 1.5px solid #f5d678; color: #7a5c00; }
+    .usage-alert { background: #fff3f3; border: 1.5px solid #f5b8b8; color: #c0392b; font-weight: bold; }
+
   </style>
 </head>
 <body>
@@ -190,6 +258,12 @@
     <div class="topbar">
       <h1 class="topbar-title">Betalingskenmerk</h1>
       <p class="topbar-text">Plak een 16-cijferig betalingskenmerk van de Belastingdienst en zie direct om welk belastingmiddel, jaar en tijdvak het gaat.</p>
+      <button class="settings-btn" onclick="openSettings()" title="KvK API-sleutel instellen">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
     </div>
 
     <div class="card">
@@ -236,6 +310,8 @@
         </div>
       </div>
 
+      <div id="usage-banner" class="usage-banner"></div>
+
       <div class="card" style="padding:14px 18px;">
         <div class="tile-label" style="margin-bottom:8px;">Positieweergave</div>
         <div class="digit-strip" id="digit-strip"></div>
@@ -247,6 +323,19 @@
 </div>
 
 <div class="copied-toast" id="copied-toast">Gekopieerd!</div>
+
+<div class="modal-overlay" id="settings-modal" onclick="if(event.target===this)closeSettings()">
+  <div class="modal">
+    <h2>KvK API-sleutel</h2>
+    <p>Voer uw KvK API-sleutel in om automatisch de bedrijfsnaam bij een RSIN op te zoeken. De sleutel wordt alleen lokaal in uw browser opgeslagen en nooit naar onze servers gestuurd. Leeg opslaan verwijdert de sleutel.</p>
+    <input type="text" id="api-key-input" placeholder="Uw KvK API-sleutel" autocomplete="off" />
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeSettings()">Annuleren</button>
+      <button onclick="saveSettings()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
 
 <script>
 const MAANDEN = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
@@ -264,12 +353,12 @@ const MIDDEL2_LABEL = {
   73: { kort: 'IB',  lang: 'Inkomstenbelasting (gemoedsbezwaarde)' },
   74: { kort: 'VpB', lang: 'Vennootschapsbelasting' },
   75: { kort: 'ZVW', lang: 'Zorgverzekeringswet' },
-  76: { kort: 'HSB', lang: 'Houderschapsbelasting (naheffing)' },
-  78: { kort: 'HSB', lang: 'Houderschapsbelasting' },
+  76: { kort: 'HSB', lang: 'Motorrijtuigenbelasting (naheffing)' },
+  78: { kort: 'HSB', lang: 'Motorrijtuigenbelasting' },
   85: { kort: 'EVN', lang: 'Eurovignet' },
   86: { kort: 'EVN', lang: 'Eurovignet (naheffing)' },
-  87: { kort: 'MOA', lang: 'Houderschapsbelasting vrachtwagens (aangifte)' },
-  88: { kort: 'MOA', lang: 'Houderschapsbelasting vrachtwagens (naheffing)' },
+  87: { kort: 'MOA', lang: 'Motorrijtuigenbelasting vrachtwagens (aangifte)' },
+  88: { kort: 'MOA', lang: 'Motorrijtuigenbelasting vrachtwagens (naheffing)' },
   97: { kort: 'LIR', lang: 'Landinrichtingsrente / Verontreinigingsheffing' },
   23: { kort: 'KOT', lang: 'Kinderopvangtoeslag' },
   24: { kort: 'HT',  lang: 'Huurtoeslag' },
@@ -345,6 +434,7 @@ function decode() {
       jaar,
       tijdvak,
       rsin: formatRsin(rsin9),
+      rsin9,
       activePositions: {
         1: 'controle',
         '2-9': 'rsin',
@@ -384,6 +474,7 @@ function decode() {
         jaar,
         tijdvak: `Boekjaar ${tydvakCode}`,
         rsin: formatRsin(rsin9),
+        rsin9,
         digitActive: [false, true,true,true,true,true,true, true, false, true,true, false,false,false,false, false],
       };
     } else if (MIDDEL2_LABEL[middel2]) {
@@ -402,6 +493,7 @@ function decode() {
         jaar,
         tijdvak: '—',
         rsin: formatRsin(rsin9),
+        rsin9,
         digitActive: [false, true,true,true,true,true,true,true,true, true,true, true, false,false,false,false],
       };
     } else {
@@ -424,6 +516,7 @@ function decode() {
   renderDigitStrip(raw, result.digitActive);
 
   resultSection.style.display = 'block';
+  lookupNaam(result.rsin9);
 }
 
 function buildOmschrijving({ kort, soortSub, tijdvak, jaar }) {
@@ -456,6 +549,79 @@ function copyOmschrijving() {
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 1800);
   });
+}
+
+// KvK instellingen
+const KVK_API_BASE   = 'https://api.kvk.nl/api/v1/zoeken';
+const KVK_TRACKER    = 'https://kvk-proxy.s-bouwman.workers.dev';
+
+function openSettings() {
+  document.getElementById('api-key-input').value = localStorage.getItem('kvk_api_key') || '';
+  document.getElementById('settings-modal').classList.add('show');
+}
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('show');
+}
+function saveSettings() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (key) localStorage.setItem('kvk_api_key', key);
+  else localStorage.removeItem('kvk_api_key');
+  closeSettings();
+}
+
+async function lookupNaam(rsin9) {
+  const naamEl = document.getElementById('res-naam');
+  const key = localStorage.getItem('kvk_api_key');
+
+  if (!key) {
+    naamEl.innerHTML = '<span class="kvk-placeholder">Stel een KvK API-sleutel in via het tandwieltje rechts bovenin</span>';
+    return;
+  }
+
+  naamEl.innerHTML = '<span class="kvk-placeholder">Ophalen…</span>';
+
+  try {
+    const resp = await fetch(`${KVK_API_BASE}?rsin=${rsin9}`, {
+      headers: { 'apikey': key },
+    });
+    if (resp.status === 401) {
+      naamEl.innerHTML = '<span class="kvk-placeholder" style="color:#c0392b">Ongeldige API-sleutel — controleer de instellingen</span>';
+      return;
+    }
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (data.resultaten && data.resultaten.length > 0) {
+      naamEl.textContent = data.resultaten[0].naam;
+    } else {
+      naamEl.innerHTML = '<span class="kvk-placeholder">Niet gevonden in KvK-register (mogelijk BSN van particulier)</span>';
+    }
+    trackAanroep(); // bijhouden na succesvolle lookup
+  } catch {
+    naamEl.innerHTML = '<span class="kvk-placeholder">Fout bij ophalen — controleer uw verbinding</span>';
+  }
+}
+
+async function trackAanroep() {
+  try {
+    const resp = await fetch(KVK_TRACKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const { count, drempel } = await resp.json();
+    const banner = document.getElementById('usage-banner');
+    if (count >= drempel) {
+      banner.className = 'usage-banner usage-alert';
+      banner.textContent = `Daglimiet bereikt: ${count} KvK-aanroepen vandaag (limiet: ${drempel}). Controleer de kosten.`;
+      banner.style.display = 'block';
+    } else if (count >= drempel - 5) {
+      banner.className = 'usage-banner usage-warn';
+      banner.textContent = `${count} van ${drempel} KvK-aanroepen vandaag gebruikt.`;
+      banner.style.display = 'block';
+    }
+  } catch {
+    // tracking-fout is niet kritisch
+  }
 }
 
 // Decode on Enter
