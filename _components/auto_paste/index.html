@@ -27,6 +27,11 @@
   <script>
     var input = document.getElementById('ki');
     var lastSent = undefined;
+    var autoPattern = /^\d{16}$/;
+
+    function normalize(val) {
+      return val.replace(/[\s\-]/g, '').toUpperCase();
+    }
 
     function send(val) {
       if (val === lastSent) return;
@@ -39,35 +44,36 @@
       }, '*');
     }
 
-    // Paste: stuur direct als 16 cijfers
+    // Paste: stuur direct als de waarde het patroon matcht
     input.addEventListener('paste', function() {
       setTimeout(function() {
-        var digits = input.value.replace(/\s/g, '');
-        if (/^\d{16}$/.test(digits)) send(digits);
+        var val = normalize(input.value);
+        if (autoPattern.test(val)) send(val);
       }, 100);
     });
 
-    // Enter: stuur huidige waarde
+    // Enter of blur: stuur altijd de genormaliseerde waarde
     input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') send(input.value.replace(/\s/g, ''));
+      if (e.key === 'Enter') send(normalize(input.value));
     });
-
-    // Blur: stuur huidige waarde
     input.addEventListener('blur', function() {
-      send(input.value.replace(/\s/g, ''));
+      send(normalize(input.value));
     });
 
-    // Ontvang waarde terug van Python na rerun
+    // Ontvang configuratie en waarde terug van Python na rerun
     window.addEventListener('message', function(e) {
       if (!e.data || e.data.type !== 'streamlit:render') return;
       var args = e.data.args || {};
-      if (typeof args.value === 'string' && input.value !== args.value) {
+      if (args.pattern) {
+        try { autoPattern = new RegExp(args.pattern); } catch(ex) {}
+      }
+      if (args.placeholder) input.placeholder = args.placeholder;
+      if (typeof args.value === 'string' && normalize(input.value) !== args.value) {
         input.value = args.value;
         lastSent = args.value;
       }
     });
 
-    // Aanmelden bij Streamlit
     window.parent.postMessage({ isStreamlitMessage: true, type: 'streamlit:componentReady', apiVersion: 1 }, '*');
     window.parent.postMessage({ isStreamlitMessage: true, type: 'streamlit:setFrameHeight', height: 44 }, '*');
   </script>

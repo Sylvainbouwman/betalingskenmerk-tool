@@ -6,6 +6,12 @@ st.set_page_config(
     layout="centered",
 )
 
+st.markdown("""
+<style>
+  [data-testid="stMainBlockContainer"] { padding-top: 1.5rem !important; }
+</style>
+""", unsafe_allow_html=True)
+
 pg = st.navigation([
     st.Page("pages/Betalingskenmerk.py",    title="Betalingskenmerk",    icon="🏦"),
     st.Page("pages/Belastingrente_IB.py",   title="Belastingrente IB",   icon="📊"),

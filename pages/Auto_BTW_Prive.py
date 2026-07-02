@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from datetime import date
+from _auto_paste import auto_paste_input as _auto_paste_input
 
 # ── Bijtelling tarieven ──────────────────────────────────────────────────────
 # Standaard (benzine/diesel/hybride, CO2 > 0)
@@ -118,23 +119,30 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Kenteken ──────────────────────────────────────────────────────────────────
-kenteken_raw = st.text_input(
-    "Kenteken",
-    placeholder="bijv. TH-992-G",
-    max_chars=10,
-    help="Koppeltekens worden automatisch verwijderd. Gegevens worden opgehaald zodra het kenteken compleet is.",
-).strip()
+if "kenteken_norm" not in st.session_state:
+    st.session_state["kenteken_norm"] = ""
 
-kenteken_norm = _normaliseer(kenteken_raw)
+st.markdown('<p style="font-size:14px;font-weight:600;color:#31333F;margin-bottom:4px;">Kenteken</p>', unsafe_allow_html=True)
+_kent_val = _auto_paste_input(
+    value=st.session_state["kenteken_norm"],
+    pattern=r"^[A-Z0-9]{6}$",
+    placeholder="Plak of typ het kenteken hier…",
+    key="kenteken_comp",
+    default=None,
+)
+if _kent_val is not None:
+    st.session_state["kenteken_norm"] = _kent_val
+
+kenteken_norm = st.session_state["kenteken_norm"]
 auto_data = None
 
 if len(kenteken_norm) == 6:
     with st.spinner("RDW gegevens ophalen…"):
         auto_data = _rdw_ophalen(kenteken_norm)
     if auto_data is None:
-        st.error(f"Kenteken **{kenteken_raw.upper()}** niet gevonden in het RDW.")
+        st.error(f"Kenteken **{kenteken_norm}** niet gevonden in het RDW.")
 elif len(kenteken_norm) > 0:
-    st.caption(f"{len(kenteken_norm)}/6 tekens ingevoerd — voer een geldig kenteken in.")
+    st.caption(f"{len(kenteken_norm)}/6 tekens — voer een geldig kenteken in.")
 
 if auto_data is None:
     st.stop()
