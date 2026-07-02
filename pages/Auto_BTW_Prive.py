@@ -383,6 +383,7 @@ for idx, auto_entry in enumerate(list(st.session_state["autos"])):
 
         dagen_i = (datum_tot_i - datum_van_i).days + 1
         periode_label_i = f"{nl_date(datum_van_i)} t/m {nl_date(datum_tot_i)}"
+        st.caption(f"Periode: {periode_label_i} — **{dagen_i} dagen**")
 
         btw_i = _btw_correctie(catalogusprijs_i, marge, dagen_i)
         bij_i, bij_label_i = _bijtelling(
