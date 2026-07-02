@@ -9,6 +9,10 @@ st.set_page_config(
 st.markdown("""
 <style>
   [data-testid="stMainBlockContainer"] { padding-top: 1.5rem !important; }
+  [data-testid="stToolbar"] { display: none !important; }
+  [data-testid="stDecoration"] { display: none !important; }
+  #MainMenu { visibility: hidden !important; }
+  footer { visibility: hidden !important; }
 </style>
 """, unsafe_allow_html=True)
 
