@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: transparent; height: 44px; overflow: hidden; }
+    input {
+      display: block;
+      width: 100%;
+      height: 44px;
+      padding: 0 12px;
+      font-size: 15px;
+      font-family: "Source Sans Pro", "Source Sans 3", sans-serif;
+      color: rgb(49, 51, 63);
+      background: white;
+      border: 1px solid rgba(49, 51, 63, 0.2);
+      border-radius: 4px;
+      outline: none;
+    }
+    input::placeholder { color: rgba(49, 51, 63, 0.4); font-style: italic; }
+    input:focus { border-color: #ff4b4b; box-shadow: 0 0 0 1px #ff4b4b; }
+  </style>
+</head>
+<body>
+  <input id="ki" type="text" maxlength="19" placeholder="Plak of typ het kenmerk hier…" />
+  <script>
+    var input = document.getElementById('ki');
+    var lastSent = undefined;
+
+    function send(val) {
+      if (val === lastSent) return;
+      lastSent = val;
+      window.parent.postMessage({
+        isStreamlitMessage: true,
+        type: 'streamlit:setComponentValue',
+        value: val,
+        dataType: 'any'
+      }, '*');
+    }
+
+    // Paste: stuur direct als 16 cijfers
+    input.addEventListener('paste', function() {
+      setTimeout(function() {
+        var digits = input.value.replace(/\s/g, '');
+        if (/^\d{16}$/.test(digits)) send(digits);
+      }, 100);
+    });
+
+    // Enter: stuur huidige waarde
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') send(input.value.replace(/\s/g, ''));
+    });
+
+    // Blur: stuur huidige waarde
+    input.addEventListener('blur', function() {
+      send(input.value.replace(/\s/g, ''));
+    });
+
+    // Ontvang waarde terug van Python na rerun
+    window.addEventListener('message', function(e) {
+      if (!e.data || e.data.type !== 'streamlit:render') return;
+      var args = e.data.args || {};
+      if (typeof args.value === 'string' && input.value !== args.value) {
+        input.value = args.value;
+        lastSent = args.value;
+      }
+    });
+
+    // Aanmelden bij Streamlit
+    window.parent.postMessage({ isStreamlitMessage: true, type: 'streamlit:componentReady', apiVersion: 1 }, '*');
+    window.parent.postMessage({ isStreamlitMessage: true, type: 'streamlit:setFrameHeight', height: 44 }, '*');
+  </script>
+</body>
+</html>

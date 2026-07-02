@@ -1,6 +1,12 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
 from datetime import date
+from pathlib import Path
+
+# Bidirectionele component: paste in dezelfde iframe, geen cross-frame DOM
+_COMP_DIR = Path(__file__).parent / "_components" / "auto_paste"
+_auto_paste_input = components.declare_component("auto_paste", path=str(_COMP_DIR))
 
 st.set_page_config(
     page_title="Betalingskenmerk — Bouwman Tools",
@@ -153,12 +159,13 @@ def render_digit_strip(raw: str, active: list) -> str:
 KVK_API_URL = "https://api.kvk.nl/api/v2/zoeken"
 
 
+@st.cache_data(ttl=3600)
 def lookup_naam_kvk(rsin9: str, api_key: str) -> str | None:
     resp = requests.get(
         KVK_API_URL,
         params={"rsin": rsin9, "resultatenPerPagina": 1},
         headers={"apikey": api_key},
-        timeout=8,
+        timeout=4,
     )
     if resp.status_code == 401:
         raise ValueError("Ongeldige KvK API-sleutel (401).")
@@ -224,18 +231,30 @@ else:
         elif "kvk_api_key" in st.session_state:
             del st.session_state["kvk_api_key"]
 
-# Input
-raw_input = st.text_input(
-    "Betalingskenmerk",
-    placeholder="bijv. 4863521721601050",
-    max_chars=19,
-    help="Plak of typ het 16-cijferig kenmerk. Spaties worden genegeerd.",
+# Input — eigen component: paste triggert direct rerun zonder klik
+st.markdown('<p style="font-size:14px;font-weight:600;color:#31333F;margin-bottom:4px;">Betalingskenmerk</p>', unsafe_allow_html=True)
+_comp_value = _auto_paste_input(
+    value=st.session_state.get("kenmerk_digits", ""),
+    key="kenmerk_comp",
+    default=None,
 )
 
-if not raw_input:
+# Sla waarde op zodat die na rerun beschikbaar blijft
+if _comp_value is not None:
+    st.session_state["kenmerk_digits"] = _comp_value.replace(" ", "")
+
+vertalen = st.button("Vertalen →", use_container_width=True)
+
+digits = st.session_state.get("kenmerk_digits", "")
+
+if vertalen and not digits:
+    st.info("Plak eerst een 16-cijferig betalingskenmerk.")
     st.stop()
 
-raw = raw_input.replace(" ", "")
+if not digits:
+    st.stop()
+
+raw = digits
 result, error = decode_kenmerk(raw)
 
 if error:
@@ -244,9 +263,37 @@ if error:
 
 omschrijving = build_omschrijving(result)
 
-# Omschrijving (st.code geeft ingebouwde kopieerknop)
-st.markdown('<div class="bk-omschrijving"><div class="label">Omschrijving voor in uw boekhouding</div></div>', unsafe_allow_html=True)
-st.code(omschrijving, language=None)
+# Omschrijving — klikbare kopieerknop via st.html (geen iframe-layout-problemen)
+st.html(f"""
+<div style="background:white;border-radius:14px;padding:16px 20px;
+  box-shadow:0 4px 16px rgba(36,48,74,.08);font-family:Arial,sans-serif;">
+  <div style="font-size:12px;color:#6b7a99;font-weight:600;
+    letter-spacing:.03em;margin-bottom:10px;">
+    Omschrijving voor in uw boekhouding
+  </div>
+  <button id="copybtn" onclick="
+    var ta = document.createElement('textarea');
+    ta.value = '{omschrijving}';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    this.innerHTML = '&#10003;&nbsp;&nbsp;Gekopieerd!';
+    this.style.background = '#1a6b3a';
+    var btn = this;
+    setTimeout(function() {{
+      btn.innerHTML = '{omschrijving} <span style=&quot;opacity:.8;font-size:15px&quot;>&#x2398;</span>';
+      btn.style.background = '#24304A';
+    }}, 1800);
+  " style="background:#24304A;color:white;border:none;border-radius:10px;
+    padding:11px 18px;font-size:18px;font-weight:bold;cursor:pointer;
+    display:inline-flex;align-items:center;gap:10px;
+    font-family:Arial,sans-serif;transition:background 0.2s;">
+    {omschrijving}
+    <span style="opacity:.8;font-size:15px">&#x2398;</span>
+  </button>
+</div>
+""")
 
 # Resultaat-tegels
 col1, col2 = st.columns(2)
@@ -275,25 +322,36 @@ with col2:
       <div class="value" style="font-family:monospace;font-size:17px;">{result['rsin']}</div>
     </div>""", unsafe_allow_html=True)
 
-# KvK naam
+# KvK naam — twee-stap: toon decode direct, haal naam op in volgende rerun
 kvk_key = st.session_state.get("kvk_api_key", "")
-if kvk_key:
-    with st.spinner("Naam opzoeken in KvK…"):
-        try:
-            naam = lookup_naam_kvk(result["rsin9"], kvk_key)
-        except ValueError as e:
-            naam = None
-            st.warning(str(e))
-        except Exception as e:
-            naam = None
-            st.warning(f"KvK-fout: {e}")
+rsin9 = result["rsin9"]
+pending_key = f"kvk_pending_{rsin9}"
 
-    naam_value = naam if naam else "Niet gevonden in KvK-register (mogelijk BSN van particulier)"
-    st.markdown(f"""
+def _naam_tile(waarde: str, loading: bool = False) -> str:
+    kleur = "color:#aab4cc;font-style:italic;font-size:15px" if loading else ""
+    return f"""
     <div class="bk-tile" style="margin-top:0">
       <div class="label">Naam bij RSIN</div>
-      <div class="value">{naam_value}</div>
-    </div>""", unsafe_allow_html=True)
+      <div class="value" style="{kleur}">{waarde}</div>
+    </div>"""
+
+if kvk_key:
+    if pending_key in st.session_state:
+        # Stap 2: decode-tiles zijn al zichtbaar, nu KvK ophalen
+        del st.session_state[pending_key]
+        try:
+            naam = lookup_naam_kvk(rsin9, kvk_key)
+            naam_value = naam or "Niet gevonden in KvK-register (mogelijk BSN van particulier)"
+        except ValueError as e:
+            naam_value = f"⚠ {e}"
+        except Exception:
+            naam_value = "KvK niet bereikbaar"
+        st.markdown(_naam_tile(naam_value), unsafe_allow_html=True)
+    else:
+        # Stap 1: toon "Ophalen…" en trigger stap 2
+        st.markdown(_naam_tile("Ophalen…", loading=True), unsafe_allow_html=True)
+        st.session_state[pending_key] = True
+        st.rerun()
 else:
     st.info("Stel uw KvK API-sleutel in de zijbalk in om de bedrijfsnaam automatisch op te zoeken.")
 
