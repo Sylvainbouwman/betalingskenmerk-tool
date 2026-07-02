@@ -2,7 +2,7 @@
 
 Een Streamlit-app met drie belastingtools voor dagelijks gebruik.
 
-**Live:** beschikbaar via Streamlit Cloud  
+**Live:** [belastingtooljoindk.streamlit.app](https://belastingtooljoindk.streamlit.app)  
 **Statische versie betalingskenmerk:** [bouwman.tools/betalingskenmerk.html](https://bouwman.tools/betalingskenmerk.html)
 
 ---
