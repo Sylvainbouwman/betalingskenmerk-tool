@@ -1,30 +1,62 @@
-# betalingskenmerk-tool
+# Bouwman Tools — Belastingtools
 
-Decodeert 16-cijferige Belastingdienst betalingskenmerken en zoekt automatisch de bijbehorende bedrijfsnaam op via de KvK API.
+Een Streamlit-app met drie belastingtools voor dagelijks gebruik.
 
-**Live (Streamlit):** komt beschikbaar via Streamlit Cloud  
-**Statische versie:** [bouwman.tools/betalingskenmerk.html](https://bouwman.tools/betalingskenmerk.html)
+**Live:** beschikbaar via Streamlit Cloud  
+**Statische versie betalingskenmerk:** [bouwman.tools/betalingskenmerk.html](https://bouwman.tools/betalingskenmerk.html)
 
-## Wat doet het
+---
+
+## Tools
+
+### 🏦 Betalingskenmerk
+Decodeert 16-cijferige Belastingdienst betalingskenmerken.
 
 - Herkent belastingsoort: LB, OB, VpB, IB en toeslagen
 - Reconstrueert het RSIN via 11-proof (inclusief BTW-nummer)
 - Toont jaar en tijdvak (maand of kwartaal)
-- Genereert een boekhoudingomschrijving (bijv. "Afdr. OB mei 2026")
+- Genereert een boekhoudingomschrijving (bijv. "Afdr. OB mei 2026") met kopieerknop
 - Zoekt automatisch de bedrijfsnaam op via de KvK API (RSIN-lookup)
-- Visuele digit-strip met actieve posities
+- **Auto-decode bij plakken** — geen klik nodig
 
 Gevalideerd kenmerk: `4863521721601050` = Aangifte OB, mei 2026, RSIN 863521721
 
-## Architectuur
+### 📊 Belastingrente IB
+Berekent de belastingrente voor een aanslag inkomstenbelasting.
+
+- Renteperiode: 1 juli volgend op het belastingjaar t/m 6 weken na dagtekening
+- Tarieven rechtstreeks van belastingdienst.nl (bijgewerkt 2 juli 2026)
+- Altijd zichtbare uitsplitsing per tariefperiode
+- Werkt ook als voorcalculatie met verwachte dagtekening
+- **Automatische check:** eens per maand wordt gecontroleerd of belastingdienst.nl nieuwere tarieven vermeldt
+
+### 📊 Belastingrente VpB
+Berekent de belastingrente voor een aanslag vennootschapsbelasting.
+
+- Renteperiode: 6 maanden na boekjaar-einde t/m 6 weken na dagtekening
+- Ondersteunt **gebroken boekjaren** (elke einddatum)
+- Tarieven rechtstreeks van belastingdienst.nl (bijgewerkt 2 juli 2026)
+- Altijd zichtbare uitsplitsing per tariefperiode
+- Werkt ook als voorcalculatie met verwachte dagtekening
+- **Automatische check:** eens per maand wordt gecontroleerd of belastingdienst.nl nieuwere tarieven vermeldt
+
+---
+
+## Structuur
 
 | Bestand | Beschrijving |
 |---------|-------------|
-| `app.py` | Streamlit-app — server-side KvK-lookup, voor gebruik door collega's |
-| `betalingskenmerk.html` | Statische HTML-versie — volledig client-side, geen KvK-lookup |
-| `requirements.txt` | Python dependencies (`streamlit`, `requests`) |
+| `app.py` | Entrypoint — `st.navigation()` router |
+| `pages/Betalingskenmerk.py` | Betalingskenmerk decoder |
+| `pages/Belastingrente_IB.py` | Belastingrente IB calculator |
+| `pages/Belastingrente_VpB.py` | Belastingrente VpB calculator |
+| `_auto_paste.py` | Streamlit custom component declaratie (paste-detectie) |
+| `_components/auto_paste/` | HTML/JS voor de paste-component |
+| `_tarieven_check.py` | Maandelijkse check op nieuwe tarieven (belastingdienst.nl) |
+| `betalingskenmerk.html` | Statische HTML-versie (geen KvK-koppeling) |
+| `requirements.txt` | Python dependencies |
 
-De HTML-versie heeft geen werkende KvK-koppeling omdat de KvK de IP-adressen van Cloudflare blokkeert. De Streamlit-versie doet de API-call server-side en heeft dit probleem niet.
+---
 
 ## Lokaal draaien
 
@@ -40,12 +72,18 @@ Maak een `.streamlit/secrets.toml` aan met:
 kvk_api_key = "jouw-kvk-api-sleutel"
 ```
 
+---
+
 ## Deployment (Streamlit Cloud)
 
 1. Push naar `master`
 2. Streamlit Cloud deployt automatisch
-3. Stel de API-sleutel in via **Settings → Secrets** in het Streamlit Cloud dashboard
+3. Stel de KvK API-sleutel in via **Settings → Secrets** in het Streamlit Cloud dashboard
+4. De URL is aan te passen via **Settings → Custom subdomain**
 
-## Bronspec
+---
 
-[Specificatie Betalingskenmerk_bepaling v1.5 — Belastingdienst](https://odb.belastingdienst.nl/wp-content/uploads/2025/07/Specificatie-Betalingskenmerk_bepaling_1.5.pdf)
+## Bronnen
+
+- [Specificatie Betalingskenmerk_bepaling v1.5 — Belastingdienst](https://odb.belastingdienst.nl/wp-content/uploads/2025/07/Specificatie-Betalingskenmerk_bepaling_1.5.pdf)
+- [Overzicht percentages belastingrente — Belastingdienst](https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/standaard_functies/prive/contact/rechten_en_plichten_bij_de_belastingdienst/belastingrente/overzicht_percentages_belastingrente)
