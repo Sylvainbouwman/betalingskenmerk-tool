@@ -99,6 +99,10 @@ def nl_date(d: date) -> str:
     return d.strftime("%d-%m-%Y")
 
 
+def _pdf_str(s: str) -> str:
+    return s.replace("—", "-").replace("–", "-").replace("≤", "<=").replace("€", "EUR")
+
+
 def _maak_pdf(auto_results: list, klant_naam: str, klant_nr: str, jaar: int, marge: bool) -> bytes:
     pdf = FPDF()
     pdf.add_page()
@@ -162,7 +166,7 @@ def _maak_pdf(auto_results: list, klant_naam: str, klant_nr: str, jaar: int, mar
         pdf.set_fill_color(225, 245, 232)
         pdf.set_text_color(0, 0, 0)
         pdf.set_font("Helvetica", "", 9)
-        pdf.cell(0, 6, f"Bijtelling ({r['bij_label']})", fill=True, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, _pdf_str(f"Bijtelling ({r['bij_label']})"), fill=True, new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("Helvetica", "B", 14)
         pdf.set_text_color(26, 77, 46)
         pdf.cell(0, 8, _pdf_bedrag(r["bij"]), new_x="LMARGIN", new_y="NEXT")
@@ -195,7 +199,7 @@ def _maak_pdf(auto_results: list, klant_naam: str, klant_nr: str, jaar: int, mar
              new_x="LMARGIN", new_y="NEXT")
     pdf.multi_cell(0, 5,
         "Berekening op basis van forfaitmethode (art. 4 lid 2 Wet OB). "
-        "Voertuiggegevens via RDW Open Data. Indicatief — geen fiscaal advies.")
+        "Voertuiggegevens via RDW Open Data. Indicatief - geen fiscaal advies.")
 
     return bytes(pdf.output())
 
@@ -275,12 +279,16 @@ for idx, auto_entry in enumerate(list(st.session_state["autos"])):
         # Kenteken
         st.markdown('<p style="font-size:13px;font-weight:600;color:#31333F;margin-bottom:3px;">Kenteken</p>',
                     unsafe_allow_html=True)
+        _should_focus = st.session_state.get("_focus_car_id") == car_id
+        if _should_focus:
+            del st.session_state["_focus_car_id"]
         _kent_val = _auto_paste_input(
             value=auto_entry["kenteken"],
             pattern=r"^[A-Z0-9]{6}$",
             placeholder="bijv. TH-992-G",
             key=f"kenteken_comp_{car_id}",
             default=None,
+            focus=_should_focus,
         )
         if _kent_val is not None and _kent_val != auto_entry["kenteken"]:
             auto_entry["kenteken"] = _kent_val
@@ -444,6 +452,7 @@ if n_autos < 5:
         if chained_van.year == berekeningsjaar:
             st.session_state[f"datum_van_{new_id}_{berekeningsjaar}"] = chained_van
         st.session_state["autos"].append({"id": new_id, "kenteken": ""})
+        st.session_state["_focus_car_id"] = new_id
         st.rerun()
 
 # ── Totalen (bij meerdere auto's) ─────────────────────────────────────────────

@@ -72,6 +72,9 @@
         input.value = args.value;
         lastSent = args.value;
       }
+      if (args.focus) {
+        setTimeout(function() { input.focus(); }, 50);
+      }
     });
 
     window.parent.postMessage({ isStreamlitMessage: true, type: 'streamlit:componentReady', apiVersion: 1 }, '*');
