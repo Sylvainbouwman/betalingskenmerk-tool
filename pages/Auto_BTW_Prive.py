@@ -45,12 +45,20 @@ def _rdw_ophalen(kn: str) -> dict | None:
             except (KeyError, ValueError, TypeError):
                 pass
         cat_str = v.get("catalogusprijs")
+        ts_str = v.get("datum_tenaamstelling", "")
+        datum_ts = None
+        if len(ts_str) == 8:
+            try:
+                datum_ts = date(int(ts_str[:4]), int(ts_str[4:6]), int(ts_str[6:8]))
+            except (ValueError, TypeError):
+                pass
         return {
             "voertuig": (v.get("merk", "") + " " + v.get("handelsbenaming", "")).strip(),
             "bouwjaar": str(v.get("datum_eerste_toelating", ""))[:4],
             "brandstof": brandstof,
             "co2": co2,
             "catalogusprijs": int(cat_str) if cat_str else None,
+            "datum_tenaamstelling": datum_ts,
         }
     except Exception:
         return None
@@ -250,12 +258,15 @@ if auto_data is None:
 # ── Compacte auto-info ────────────────────────────────────────────────────────
 co2_txt = f"{auto_data['co2']} g/km" if auto_data["co2"] is not None else "CO₂ onbekend"
 cat_txt = nl_euro(auto_data["catalogusprijs"]) if auto_data["catalogusprijs"] else "—"
+ts = auto_data["datum_tenaamstelling"]
+ts_txt = f"In gebruik vanaf {nl_date(ts)}" if ts else ""
 st.markdown(
     f'<div class="auto-info">'
     f'<b>{kenteken_norm}</b> &nbsp;·&nbsp; {auto_data["voertuig"]} &nbsp;·&nbsp; '
     f'Bouwjaar {auto_data["bouwjaar"]} &nbsp;·&nbsp; {auto_data["brandstof"]} &nbsp;·&nbsp; '
     f'{co2_txt} &nbsp;·&nbsp; Catalogusprijs {cat_txt}'
-    f'</div>',
+    + (f' &nbsp;·&nbsp; <span style="color:#1a4d2e;font-weight:600;">{ts_txt}</span>' if ts_txt else '')
+    + f'</div>',
     unsafe_allow_html=True,
 )
 
@@ -285,32 +296,38 @@ with col_b:
         help="Vink aan als de auto als marge-auto is gekocht (zonder BTW-factuur).",
     )
 with col_c:
-    periode_keuze = st.radio(
-        "Periode",
-        options=["Volledig jaar (365 dagen)", "Eigen periode"],
-        horizontal=True,
-    )
+    # Slimme default: tenaamstelling in dit jaar → gebruik als startdatum
+    if ts and ts.year == berekeningsjaar:
+        default_van = ts
+    else:
+        default_van = date(berekeningsjaar, 1, 1)
+    default_tot = date(berekeningsjaar, 12, 31)
 
-if periode_keuze == "Eigen periode":
     col_d1, col_d2 = st.columns(2)
     with col_d1:
-        datum_van = st.date_input("Van", value=date(berekeningsjaar, 1, 1),
-                                  min_value=date(berekeningsjaar, 1, 1),
-                                  max_value=date(berekeningsjaar, 12, 31),
-                                  format="DD-MM-YYYY")
+        datum_van = st.date_input(
+            "Van",
+            value=default_van,
+            min_value=date(berekeningsjaar, 1, 1),
+            max_value=date(berekeningsjaar, 12, 31),
+            format="DD-MM-YYYY",
+            key=f"datum_van_{kenteken_norm}_{berekeningsjaar}",
+        )
     with col_d2:
-        datum_tot = st.date_input("Tot en met", value=date(berekeningsjaar, 12, 31),
-                                  min_value=date(berekeningsjaar, 1, 1),
-                                  max_value=date(berekeningsjaar, 12, 31),
-                                  format="DD-MM-YYYY")
-    if datum_tot < datum_van:
-        st.error("Einddatum moet na de begindatum liggen.")
-        st.stop()
-    dagen = (datum_tot - datum_van).days + 1
-    periode_label = f"{nl_date(datum_van)} t/m {nl_date(datum_tot)}"
-else:
-    dagen = 365
-    periode_label = f"1-1-{berekeningsjaar} t/m 31-12-{berekeningsjaar}"
+        datum_tot = st.date_input(
+            "Tot en met",
+            value=default_tot,
+            min_value=date(berekeningsjaar, 1, 1),
+            max_value=date(berekeningsjaar, 12, 31),
+            format="DD-MM-YYYY",
+            key=f"datum_tot_{kenteken_norm}_{berekeningsjaar}",
+        )
+
+if datum_tot < datum_van:
+    st.error("Einddatum moet na de begindatum liggen.")
+    st.stop()
+dagen = (datum_tot - datum_van).days + 1
+periode_label = f"{nl_date(datum_van)} t/m {nl_date(datum_tot)}"
 
 # ── Berekening ───────────────────────────────────────────────────────────────
 btw = _btw_correctie(catalogusprijs, marge, dagen)
