@@ -331,6 +331,13 @@ for idx, auto_entry in enumerate(list(st.session_state["autos"])):
         van_key = f"datum_van_{car_id}_{berekeningsjaar}"
         tot_key = f"datum_tot_{car_id}_{berekeningsjaar}"
 
+        # Wis datumkeys als het kenteken van deze auto-slot is veranderd
+        prev_kv_key = f"_prev_kent_{car_id}"
+        if st.session_state.get(prev_kv_key) != kenteken_i:
+            st.session_state.pop(van_key, None)
+            st.session_state.pop(tot_key, None)
+            st.session_state[prev_kv_key] = kenteken_i
+
         if van_key not in st.session_state:
             if idx == 0:
                 if ts_i and ts_i.year == berekeningsjaar:
@@ -342,7 +349,13 @@ for idx, auto_entry in enumerate(list(st.session_state["autos"])):
                 prev_tot = st.session_state.get(f"datum_tot_{prev_id}_{berekeningsjaar}",
                                                  date(berekeningsjaar, 6, 30))
                 chained = prev_tot + timedelta(days=1)
-                st.session_state[van_key] = min(chained, date(berekeningsjaar, 12, 31))
+                if chained <= date(berekeningsjaar, 12, 31):
+                    st.session_state[van_key] = chained
+                elif ts_i and ts_i.year == berekeningsjaar:
+                    # Vorige auto loopt t/m 31-12: gebruik tenaamstelling als deze in het jaar valt
+                    st.session_state[van_key] = ts_i
+                else:
+                    st.session_state[van_key] = date(berekeningsjaar, 1, 1)
 
         col_d1, col_d2 = st.columns(2)
         with col_d1:
