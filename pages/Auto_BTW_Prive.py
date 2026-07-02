@@ -82,6 +82,11 @@ def nl_euro(x: float) -> str:
     return f"€ {s}"
 
 
+def _pdf_bedrag(x: float) -> str:
+    s = f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"EUR {s}"
+
+
 def nl_date(d: date) -> str:
     return d.strftime("%d-%m-%Y")
 
@@ -132,7 +137,7 @@ def _maak_pdf(kenteken, auto, klant_naam, klant_nr, jaar, periode_label, dagen,
     _rij("Brandstof:", auto["brandstof"])
     co2_txt = f"{auto['co2']} g/km" if auto["co2"] is not None else "Onbekend"
     _rij("CO2-uitstoot:", co2_txt)
-    _rij("Catalogusprijs:", nl_euro(catalogusprijs))
+    _rij("Catalogusprijs:", _pdf_bedrag(catalogusprijs))
 
     # Berekening
     _sectie("Berekening")
@@ -152,7 +157,7 @@ def _maak_pdf(kenteken, auto, klant_naam, klant_nr, jaar, periode_label, dagen,
              fill=True, new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(26, 58, 110)
-    pdf.cell(0, 10, nl_euro(btw), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, _pdf_bedrag(btw), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)
 
     # Bijtelling blok
@@ -163,7 +168,7 @@ def _maak_pdf(kenteken, auto, klant_naam, klant_nr, jaar, periode_label, dagen,
              fill=True, new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "B", 18)
     pdf.set_text_color(26, 77, 46)
-    pdf.cell(0, 10, nl_euro(bij), new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 10, _pdf_bedrag(bij), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(6)
 
     # Footer
@@ -342,28 +347,37 @@ with col_r2:
     </div>""")
 
 # ── PDF download ──────────────────────────────────────────────────────────────
-pdf_bytes = _maak_pdf(
-    kenteken=kenteken_norm,
-    auto=auto_data,
-    klant_naam=klant_naam,
-    klant_nr=klant_nr,
-    jaar=berekeningsjaar,
-    periode_label=periode_label,
-    dagen=dagen,
-    marge=marge,
-    catalogusprijs=catalogusprijs,
-    btw=btw,
-    bij=bij,
-    bij_label=bij_label,
-)
 bestandsnaam = f"BTW_auto_{kenteken_norm}_{berekeningsjaar}.pdf"
-st.download_button(
-    label="📄 Download PDF",
-    data=pdf_bytes,
-    file_name=bestandsnaam,
-    mime="application/pdf",
-    use_container_width=True,
-)
+
+if st.button("📄 Genereer PDF", use_container_width=True):
+    try:
+        pdf_bytes = _maak_pdf(
+            kenteken=kenteken_norm,
+            auto=auto_data,
+            klant_naam=klant_naam,
+            klant_nr=klant_nr,
+            jaar=berekeningsjaar,
+            periode_label=periode_label,
+            dagen=dagen,
+            marge=marge,
+            catalogusprijs=catalogusprijs,
+            btw=btw,
+            bij=bij,
+            bij_label=bij_label,
+        )
+        st.session_state["pdf_bytes"] = pdf_bytes
+        st.session_state["pdf_naam"] = bestandsnaam
+    except Exception as e:
+        st.error(f"PDF genereren mislukt: {e}")
+
+if "pdf_bytes" in st.session_state and st.session_state.get("pdf_naam") == bestandsnaam:
+    st.download_button(
+        label="📥 Download PDF",
+        data=st.session_state["pdf_bytes"],
+        file_name=bestandsnaam,
+        mime="application/pdf",
+        use_container_width=True,
+    )
 
 st.caption(
     "Forfaitmethode art. 4 lid 2 Wet OB · Voertuiggegevens via RDW Open Data · "
