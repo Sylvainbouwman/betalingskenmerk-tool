@@ -40,6 +40,18 @@ Berekent de belastingrente voor een aanslag vennootschapsbelasting.
 - Werkt ook als voorcalculatie met verwachte dagtekening
 - **Automatische check:** eens per maand wordt gecontroleerd of belastingdienst.nl nieuwere tarieven vermeldt
 
+### 🚗 Auto BTW privé
+Berekent de BTW-correctie en bijtelling voor privégebruik van een zakelijke auto (forfaitmethode).
+
+- Kenteken invoeren → automatische opzoekservice via het **RDW kentekenregister** (gratis, geen API-sleutel)
+- Haalt op: merk, model, bouwjaar, brandstof, CO₂-uitstoot en catalogusprijs
+- **BTW-correctie** (art. 4 lid 2 Wet OB): 2,7% of 1,5% (marge-auto) van catalogusprijs
+- **Bijtelling**: bijtellingpercentage op basis van berekeningsjaar en brandstof/CO₂
+  - Benzine/diesel: 22% (2017+), 25% (2012–2016)
+  - Elektrisch/waterstof: laag tarief met cap (bijv. 16% t/m €30.000 in 2025)
+- Keuze volledig jaar of eigen periode
+- Catalogusprijs handmatig invullen als RDW geen waarde heeft
+
 ---
 
 ## Structuur
@@ -50,6 +62,7 @@ Berekent de belastingrente voor een aanslag vennootschapsbelasting.
 | `pages/Betalingskenmerk.py` | Betalingskenmerk decoder |
 | `pages/Belastingrente_IB.py` | Belastingrente IB calculator |
 | `pages/Belastingrente_VpB.py` | Belastingrente VpB calculator |
+| `pages/Auto_BTW_Prive.py` | Auto BTW privé calculator (RDW-koppeling) |
 | `_auto_paste.py` | Streamlit custom component declaratie (paste-detectie) |
 | `_components/auto_paste/` | HTML/JS voor de paste-component |
 | `_tarieven_check.py` | Maandelijkse check op nieuwe tarieven (belastingdienst.nl) |
