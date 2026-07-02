@@ -22,7 +22,7 @@ _EV_BIJ = {
 }
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=600)
 def _rdw_ophalen(kn: str) -> dict | None:
     try:
         r = requests.get(
