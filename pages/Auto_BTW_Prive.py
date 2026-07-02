@@ -177,7 +177,7 @@ with col4:
     st.markdown(f"""
     <div class="bk-tile">
       <div class="label">Kenteken</div>
-      <div class="value" style="font-size:15px;">{kenteken_raw.upper()}</div>
+      <div class="value" style="font-size:15px;">{kenteken_norm}</div>
       <div class="sub">&nbsp;</div>
     </div>""", unsafe_allow_html=True)
 
