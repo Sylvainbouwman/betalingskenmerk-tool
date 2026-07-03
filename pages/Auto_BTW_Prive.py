@@ -338,13 +338,28 @@ for idx, auto_entry in enumerate(list(st.session_state["autos"])):
         # Slimme default periode
         van_key = f"datum_van_{car_id}_{berekeningsjaar}"
         tot_key = f"datum_tot_{car_id}_{berekeningsjaar}"
+        flip_pending_key = f"_flip_pending_{car_id}"
 
         # Wis datumkeys als het kenteken van deze auto-slot is veranderd
         prev_kv_key = f"_prev_kent_{car_id}"
         if st.session_state.get(prev_kv_key) != kenteken_i:
             st.session_state.pop(van_key, None)
             st.session_state.pop(tot_key, None)
+            st.session_state.pop(flip_pending_key, None)
             st.session_state[prev_kv_key] = kenteken_i
+
+        # Verwerk flip vóór widget-instantiatie (Streamlit staat geen schrijven toe ná render)
+        if st.session_state.pop(flip_pending_key, False):
+            _fv = st.session_state.get(van_key, date(berekeningsjaar, 1, 1))
+            _ft = st.session_state.get(tot_key, date(berekeningsjaar, 12, 31))
+            _jan1 = date(berekeningsjaar, 1, 1)
+            _dec31 = date(berekeningsjaar, 12, 31)
+            if _fv > _jan1:
+                st.session_state[van_key] = _jan1
+                st.session_state[tot_key] = _fv - timedelta(days=1)
+            elif _ft < _dec31:
+                st.session_state[van_key] = _ft + timedelta(days=1)
+                st.session_state[tot_key] = _dec31
 
         if van_key not in st.session_state:
             if idx == 0:
@@ -391,7 +406,22 @@ for idx, auto_entry in enumerate(list(st.session_state["autos"])):
 
         dagen_i = (datum_tot_i - datum_van_i).days + 1
         periode_label_i = f"{nl_date(datum_van_i)} t/m {nl_date(datum_tot_i)}"
-        st.caption(f"Periode: {periode_label_i} — **{dagen_i} dagen**")
+
+        # Bepaal of omdraaien mogelijk is (periode beslaat niet het hele jaar)
+        jan1_y = date(berekeningsjaar, 1, 1)
+        dec31_y = date(berekeningsjaar, 12, 31)
+        _can_flip = datum_van_i > jan1_y or datum_tot_i < dec31_y
+
+        cap_col, btn_col = st.columns([4, 1])
+        with cap_col:
+            st.caption(f"Periode: {periode_label_i} — **{dagen_i} dagen**")
+        with btn_col:
+            if _can_flip:
+                if st.button("⇄ Omdraaien", key=f"flip_{car_id}",
+                             help="Zet de periode om naar het complement in hetzelfde jaar "
+                                  "(bijv. 1-3 t/m 31-12 ↔ 1-1 t/m 28-2)"):
+                    st.session_state[flip_pending_key] = True
+                    st.rerun()
 
         btw_i = _btw_correctie(catalogusprijs_i, marge, dagen_i)
         bij_i, bij_label_i = _bijtelling(
