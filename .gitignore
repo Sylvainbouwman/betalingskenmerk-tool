@@ -2,3 +2,26 @@
 .env
 __pycache__/
 *.pyc
+
+# Accountancy databestanden
+*.xaf
+*.XAF
+*.csv
+*.xlsx
+*.xls
+*.xml
+*.pdf
+*.docx
+
+# Configuratie en secrets
+.env.local
+*.key
+*.pem
+
+# Runtime/infra
+node_modules/
+.wrangler/
+supabase/.temp/
+*.log
+*.db
+*.sqlite
