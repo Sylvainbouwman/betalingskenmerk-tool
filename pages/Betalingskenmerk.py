@@ -154,13 +154,16 @@ def lookup_naam_kvk(rsin9: str, api_key: str) -> str | None:
         KVK_API_URL,
         params={"rsin": rsin9, "resultatenPerPagina": 1},
         headers={"apikey": api_key},
-        timeout=4,
+        timeout=8,
     )
     if resp.status_code == 401:
-        raise ValueError("Ongeldige KvK API-sleutel (401).")
-    if resp.status_code == 404:
+        raise ValueError("Ongeldige of verlopen KvK API-sleutel (401). Controleer uw sleutel via developer.kvk.nl.")
+    if resp.status_code == 403:
+        raise ValueError("Toegang geweigerd (403). Controleer of uw API-abonnement nog actief is.")
+    if resp.status_code in (404, 400):
         return None
-    resp.raise_for_status()
+    if not resp.ok:
+        raise ValueError(f"KvK API fout {resp.status_code}: {resp.text[:200]}")
     items = resp.json().get("resultaten", [])
     return items[0].get("naam") if items else None
 
@@ -325,8 +328,8 @@ if kvk_key:
             naam_value = naam or "Niet gevonden in KvK-register (mogelijk BSN van particulier)"
         except ValueError as e:
             naam_value = f"⚠ {e}"
-        except Exception:
-            naam_value = "KvK niet bereikbaar"
+        except Exception as e:
+            naam_value = f"KvK niet bereikbaar ({type(e).__name__}: {e})"
         st.markdown(_naam_tile(naam_value), unsafe_allow_html=True)
     else:
         st.markdown(_naam_tile("Ophalen…", loading=True), unsafe_allow_html=True)
