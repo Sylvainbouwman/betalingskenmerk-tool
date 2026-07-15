@@ -44,6 +44,25 @@ def adres_regels(adres_str: str) -> list[str]:
     return [r.strip() for r in adres_str.strip().splitlines() if r.strip()]
 
 
+KVK_API_URL = "https://api.kvk.nl/api/v2/zoeken"
+
+
+@st.cache_data(ttl=3600)
+def lookup_sbi(rsin9: str, api_key: str) -> list:
+    resp = requests.get(KVK_API_URL, params={"rsin": rsin9, "resultatenPerPagina": 1},
+                        headers={"apikey": api_key}, timeout=8)
+    if not resp.ok:
+        return []
+    items = resp.json().get("resultaten", [])
+    if not items:
+        return []
+    href = next((l["href"] for l in items[0].get("links", []) if l["rel"] == "basisprofiel"), None)
+    if not href:
+        return []
+    r2 = requests.get(href, headers={"apikey": api_key}, timeout=8)
+    return r2.json().get("sbiActiviteiten", []) if r2.ok else []
+
+
 # ── Stijl ────────────────────────────────────────────────────────────────────
 
 st.markdown("""
@@ -138,7 +157,7 @@ if geldig:
           <div class="value" style="font-size:15px;font-weight:normal;line-height:1.5;">{adres_html}</div>
         </div>""", unsafe_allow_html=True)
 
-    # Voor NL: toon het RSIN
+    # Voor NL: toon RSIN en haal SBI-code op via KvK
     if land == "NL":
         rsin_match = re.match(r"^(\d{9})B\d{2}$", nummer)
         if rsin_match:
@@ -150,6 +169,27 @@ if geldig:
               <div class="value" style="font-family:monospace;font-size:17px;">{rsin_fmt}</div>
               <div class="sub">Correspondeert met het RSIN in een betalingskenmerk</div>
             </div>""", unsafe_allow_html=True)
+
+            # SBI-code via KvK (indien sleutel beschikbaar)
+            try:
+                kvk_key = st.secrets.get("kvk_api_key", "")
+            except Exception:
+                kvk_key = ""
+            kvk_key = kvk_key or st.session_state.get("kvk_api_key", "")
+
+            if kvk_key:
+                sbi_codes = lookup_sbi(rsin9, kvk_key)
+                if sbi_codes:
+                    hoofd = [s for s in sbi_codes if s.get("indHoofdactiviteit") == "Ja"]
+                    neven = [s for s in sbi_codes if s.get("indHoofdactiviteit") != "Ja"]
+                    hoofd_str = " · ".join(f"{s['sbiCode']} {s['sbiOmschrijving']}" for s in hoofd) or "—"
+                    neven_str = " · ".join(f"{s['sbiCode']} {s['sbiOmschrijving']}" for s in neven)
+                    st.markdown(f"""
+                    <div class="vies-tile">
+                      <div class="label">SBI-code (KvK)</div>
+                      <div class="value" style="font-size:16px;">{hoofd_str}</div>
+                      {f'<div class="sub">Nevenactiviteit: {neven_str}</div>' if neven_str else ''}
+                    </div>""", unsafe_allow_html=True)
 
 else:
     st.info("Dit BTW-nummer is niet geregistreerd of niet actief in de VIES-database. "

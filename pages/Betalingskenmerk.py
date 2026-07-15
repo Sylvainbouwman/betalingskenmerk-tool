@@ -149,7 +149,8 @@ KVK_API_URL = "https://api.kvk.nl/api/v2/zoeken"
 
 
 @st.cache_data(ttl=3600)
-def lookup_naam_kvk(rsin9: str, api_key: str) -> str | None:
+def lookup_kvk_info(rsin9: str, api_key: str) -> dict | None:
+    """Geeft {"naam": str|None, "sbi": list} terug, of None als niet gevonden."""
     resp = requests.get(
         KVK_API_URL,
         params={"rsin": rsin9, "resultatenPerPagina": 1},
@@ -165,7 +166,19 @@ def lookup_naam_kvk(rsin9: str, api_key: str) -> str | None:
     if not resp.ok:
         raise ValueError(f"KvK API fout {resp.status_code}: {resp.text[:200]}")
     items = resp.json().get("resultaten", [])
-    return items[0].get("naam") if items else None
+    if not items:
+        return None
+    item = items[0]
+    href = next((l["href"] for l in item.get("links", []) if l["rel"] == "basisprofiel"), None)
+    sbi = []
+    if href:
+        try:
+            r2 = requests.get(href, headers={"apikey": api_key}, timeout=8)
+            if r2.ok:
+                sbi = r2.json().get("sbiActiviteiten", [])
+        except Exception:
+            pass
+    return {"naam": item.get("naam"), "sbi": sbi}
 
 
 # ── UI ──────────────────────────────────────────────────────────────────────
@@ -323,20 +336,36 @@ def _naam_tile(waarde: str, loading: bool = False) -> str:
 if kvk_key:
     if pending_key in st.session_state:
         del st.session_state[pending_key]
+        sbi_codes = []
         try:
-            naam = lookup_naam_kvk(rsin9, kvk_key)
-            naam_value = naam or "Niet gevonden in KvK-register (mogelijk BSN van particulier)"
+            info = lookup_kvk_info(rsin9, kvk_key)
+            if info:
+                naam_value = info["naam"] or "Niet gevonden in KvK-register (mogelijk BSN van particulier)"
+                sbi_codes = info["sbi"]
+            else:
+                naam_value = "Niet gevonden in KvK-register (mogelijk BSN van particulier)"
         except ValueError as e:
             naam_value = f"⚠ {e}"
         except Exception as e:
             naam_value = f"KvK niet bereikbaar ({type(e).__name__}: {e})"
         st.markdown(_naam_tile(naam_value), unsafe_allow_html=True)
+        if sbi_codes:
+            hoofd = [s for s in sbi_codes if s.get("indHoofdactiviteit") == "Ja"]
+            neven = [s for s in sbi_codes if s.get("indHoofdactiviteit") != "Ja"]
+            hoofd_str = " · ".join(f"{s['sbiCode']} {s['sbiOmschrijving']}" for s in hoofd) or "—"
+            neven_str = " · ".join(f"{s['sbiCode']} {s['sbiOmschrijving']}" for s in neven)
+            st.markdown(f"""
+            <div class="bk-tile">
+              <div class="label">SBI-code</div>
+              <div class="value" style="font-size:16px;">{hoofd_str}</div>
+              {f'<div class="sub">Nevenactiviteit: {neven_str}</div>' if neven_str else ''}
+            </div>""", unsafe_allow_html=True)
     else:
         st.markdown(_naam_tile("Ophalen…", loading=True), unsafe_allow_html=True)
         st.session_state[pending_key] = True
         st.rerun()
 else:
-    st.info("Stel uw KvK API-sleutel in de zijbalk in om de bedrijfsnaam automatisch op te zoeken.")
+    st.info("Stel uw KvK API-sleutel in de zijbalk in om de bedrijfsnaam en SBI-code automatisch op te zoeken.")
 
 with st.expander("Positieweergave", expanded=False):
     st.markdown(render_digit_strip(raw, result["digit_active"]), unsafe_allow_html=True)
