@@ -1,9 +1,8 @@
 # Bouwman Tools — Belastingtools
 
-Een Streamlit-app met drie belastingtools voor dagelijks gebruik.
+Een Streamlit-app met belastingtools voor dagelijks gebruik.
 
-**Live:** [belastingtooljoindk.streamlit.app](https://belastingtooljoindk.streamlit.app)  
-**Statische versie betalingskenmerk:** [bouwman.tools/betalingskenmerk.html](https://bouwman.tools/betalingskenmerk.html)
+**Live:** [belastingtooljoindk.streamlit.app](https://belastingtooljoindk.streamlit.app)
 
 ---
 
@@ -12,14 +11,30 @@ Een Streamlit-app met drie belastingtools voor dagelijks gebruik.
 ### 🏦 Betalingskenmerk
 Decodeert 16-cijferige Belastingdienst betalingskenmerken.
 
-- Herkent belastingsoort: LB, OB, VpB, IB en toeslagen
+- Herkent belastingsoort: LH, OB, VpB, IB en toeslagen
 - Reconstrueert het RSIN via 11-proof (inclusief BTW-nummer)
 - Toont jaar en tijdvak (maand of kwartaal)
 - Genereert een boekhoudingomschrijving (bijv. "Afdr. OB mei 2026") met kopieerknop
-- Zoekt automatisch de bedrijfsnaam op via de KvK API (RSIN-lookup)
+- Zoekt automatisch de bedrijfsnaam **en SBI-code** op via de KvK API (RSIN-lookup)
 - **Auto-decode bij plakken** — geen klik nodig
 
 Gevalideerd kenmerk: `4863521721601050` = Aangifte OB, mei 2026, RSIN 863521721
+
+### 🇪🇺 VIES BTW-controle
+Valideert Europese BTW-nummers via de officiële EU VIES-database.
+
+- Ondersteunt alle EU-landen (NL, DE, BE, FR, ...)
+- Toont geldigheid, bedrijfsnaam en adres
+- Leidt voor NL-nummers automatisch het RSIN af
+- Gratis, geen API-sleutel vereist
+
+### 🔍 KvK / SBI opzoeken
+Zoek bedrijfsgegevens op via de KvK Handelsregister API.
+
+- Zoeken op bedrijfsnaam, KvK-nummer (8 cijfers) of RSIN (9 cijfers)
+- Toont naam, KvK-nummer, RSIN en SBI-activiteitscode(s)
+- Onderscheid hoofd- en nevenactiviteiten
+- Tot 10 resultaten per zoekopdracht
 
 ### 📊 Belastingrente IB
 Berekent de belastingrente voor een aanslag inkomstenbelasting.
@@ -59,15 +74,26 @@ Berekent de BTW-correctie en bijtelling voor privégebruik van een zakelijke aut
 | Bestand | Beschrijving |
 |---------|-------------|
 | `app.py` | Entrypoint — `st.navigation()` router |
-| `pages/Betalingskenmerk.py` | Betalingskenmerk decoder |
+| `pages/Betalingskenmerk.py` | Betalingskenmerk decoder + KvK naam/SBI |
+| `pages/VIES_BTW_Controle.py` | EU BTW-nummer validatie via VIES |
+| `pages/KvK_SBI_Opzoeken.py` | KvK / SBI opzoeken op naam, KvK-nr of RSIN |
 | `pages/Belastingrente_IB.py` | Belastingrente IB calculator |
 | `pages/Belastingrente_VpB.py` | Belastingrente VpB calculator |
 | `pages/Auto_BTW_Prive.py` | Auto BTW privé calculator (RDW-koppeling) |
 | `_auto_paste.py` | Streamlit custom component declaratie (paste-detectie) |
 | `_components/auto_paste/` | HTML/JS voor de paste-component |
 | `_tarieven_check.py` | Maandelijkse check op nieuwe tarieven (belastingdienst.nl) |
-| `betalingskenmerk.html` | Statische HTML-versie (geen KvK-koppeling) |
 | `requirements.txt` | Python dependencies |
+
+---
+
+## API-sleutels
+
+| API | Gebruikt door | Kosten | Sleutel vereist |
+|-----|--------------|--------|-----------------|
+| KvK Handelsregister | Betalingskenmerk, KvK/SBI | ~€0,02–0,04 per aanroep | Ja — via `.streamlit/secrets.toml` |
+| RDW Open Data | Auto BTW privé | Gratis | Nee |
+| EU VIES | VIES BTW-controle | Gratis | Nee |
 
 ---
 
@@ -92,7 +118,6 @@ kvk_api_key = "jouw-kvk-api-sleutel"
 1. Push naar `master`
 2. Streamlit Cloud deployt automatisch
 3. Stel de KvK API-sleutel in via **Settings → Secrets** in het Streamlit Cloud dashboard
-4. De URL is aan te passen via **Settings → Custom subdomain**
 
 ---
 
@@ -100,3 +125,5 @@ kvk_api_key = "jouw-kvk-api-sleutel"
 
 - [Specificatie Betalingskenmerk_bepaling v1.5 — Belastingdienst](https://odb.belastingdienst.nl/wp-content/uploads/2025/07/Specificatie-Betalingskenmerk_bepaling_1.5.pdf)
 - [Overzicht percentages belastingrente — Belastingdienst](https://www.belastingdienst.nl/wps/wcm/connect/bldcontentnl/standaard_functies/prive/contact/rechten_en_plichten_bij_de_belastingdienst/belastingrente/overzicht_percentages_belastingrente)
+- [KvK Handelsregister API](https://developers.kvk.nl)
+- [EU VIES API](https://ec.europa.eu/taxation_customs/vies/)
